@@ -6,8 +6,8 @@
       ./hardware-configuration.nix
     ];
 
-  boot.loader.grub.enable = true;
-  boot.loader.grub.device = "/dev/sda";
+  boot.loader.systemd-boot.enable = true;
+  boot.loader.efi.canTouchEfiVariables = true;
 
   boot.kernelPackages = pkgs.linuxPackages_latest;
 
@@ -34,11 +34,14 @@
 
   users.users.simon = {
     isNormalUser = true;
-    extraGroups = [ "wheel" ];
+    description = "simon karlsson";
+    extraGroups = [ "networkmanager" "wheel" ];
     packages = with pkgs; [
-      tree
+      
     ];
   };
+
+  nixpkgs.config.allowUnFree = true;
 
   programs.firefox.enable = true;
 
@@ -126,7 +129,6 @@
 
   # networking.firewall.allowedTCPPorts = [ ... ];
   # networking.firewall.allowedUDPPorts = [ ... ];
-  # networking.firewall.enable = false;
 
   #Services
   services.gvfs.enable = true;
