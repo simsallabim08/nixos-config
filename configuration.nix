@@ -1,15 +1,54 @@
 { config, lib, pkgs, ... }:
 
+#Theme packageing
+let
+  nashville96 = pkgs.stdenv.mkDerivation {
+    name = "nashville96";
+    src = pkgs.fetchFromGitHub {
+      owner = "donfaustinocortizone";
+      repo = "Nashville96";
+      rev = "master";
+      sha256 = "1x8rbgxs9x5af8hv6xk6aha4sz6yciis35jzfrpqqdddvf6a032v";
+    };
+    installPhase = ''
+      mkdir -p $out/share/themes
+      cp -r Themes/* $out/share/themes
+    '';
+    dontBuild = true;
+  };
+  
+  modernxp-cursors = pkgs.stdenv.mkDerivation {
+    name = "modernxp-cursors";
+    src = pkgs.fetchurl {
+      url = "https://github.com/na0miluv/modernXP-cursor-theme/releases/download/final/ModernXP.tar.gz";
+      sha256 = "sha256-W0OdG4OPGbZn1WX5vHxeQ1EYp+9gyyl19Glc4ha2vgM";
+    };
+    unpackPhase = ''
+      tar -xzf $src
+    '';
+    installPhase = ''
+      mkdir -p $out/share/icons
+      cp -r ModernXP $out/share/icons/
+    '';
+    dontBuild = true;
+  };
+in
+
 {
   imports =
     [
       ./hardware-configuration.nix
     ];
 
-  boot.loader.grub.enable = true;
-  boot.loader.grub.device = "/dev/sda";
-  boot.loader.grub.useOSProber = true;
-  boot.loader.grub.theme = pkgs.minimal-grub-theme;
+  boot.loader.grub = {
+    enable = true;
+    device = "/dev/sda";
+    useOSProber = true;
+    #theme = pkgs.minimal-grub-theme;
+    timeoutStyle = "hidden";
+    memtest86.enable = true;
+    splashImage = null;
+  };
 
   boot.kernelPackages = pkgs.linuxPackages_latest;
 
@@ -18,18 +57,10 @@
     KERNEL=="uinput", MODE="0660", GROUP="input", OPTIONS+="static_node=uinput"
   '';
 
-  #Hibernation pretty please?
-  systemd.services.systemd-hibernate = {
-    serviceConfig.ExecStart = lib.mkForce [
-      ""
-      "${pkgs.bash}/bin/bash -c 'echo shutdown > /sys/power/disk && echo disk > /sys/power/state'"
-    ];
-  };
-
   #Boot screen
   boot = {
     plymouth = {
-      enable = true;
+      enable = false; #True: grapical. False: text.
       theme = "rings";
       themePackages = with pkgs; [
         # By default we would install all themes
@@ -45,10 +76,7 @@
     kernelParams = [
       "udev.log_level=3"
       "systemd.show_status=auto"
-      "resume=UUID=fb0d1ebd-bdc8-435d-8dad-da61106342e2"
     ];
-    loader.timeout = 5;
-
   };
 
   #Network and wireless stuff
@@ -85,7 +113,7 @@
 
   #PS1 prompt fixed without shitty newline
   programs.bash.promptInit = ''
-    PS1="\[\033[1;32m\][\u@\h:\w]\$\[\033[0m\]"
+    PS1="\[\033[1;32m\][\u@\h:\w]\$\[\033[0m\] "
   '';
 
   services.printing.enable = true;
@@ -107,15 +135,20 @@
     ];
   };
 
+  users.users.jeanette = {
+    isNormalUser = true;
+    extraGroups = [ "networkmanager" "wheel" "input" ];
+  };
+
   #Login screen ReGreet config
   programs.regreet = {
     enable = true;
-    theme.name = "Materia";
+    theme.name = "Nashville96-Kanagawa";
     font = {
-      name = "Cantarell";
+      name = "Fixedsys Excelsior 3.01";
       size = 16;
     };
-    cursorTheme.name = "graphite-light";
+    cursorTheme.name = "ModernXP";
   };
   programs.regreet.settings = {
     background = {
@@ -140,11 +173,12 @@
 
   #Swaylock config
   environment.etc."swaylock/config".text = ''
+    font=Fixedsys Excelsior 3.01
     image=/home/simon/Bilder/walls/x1pad.jpeg
     clock
     timestr=%H:%M
     datestr=%A, %d %B
-    effect-blur=1x1
+    effect-blur=4x6
     effect-vignette=0.5:0.8
     indicator
     indicator-radius=100
@@ -167,18 +201,7 @@
   #Seciruty
   security.polkit.enable = true;
 
-  security.sudo.extraRules = [
-    {
-      users = [ "simon" ];
-      commands = [
-        {
-          command = "/run/current-system/sw/bin/systemctl start systemd-hibernate";
-          options = [ "NOPASSWD" ];
-        }
-      ];
-    }
-  ];
-
+  #Programs
   programs.firefox.enable = true;
   programs.niri.enable = true;
 
@@ -240,6 +263,7 @@
     astroterm #Celestial viewer
     figlet #Large text
     espeak-classic #SAM
+    screen #serial connector
 
 
     #Better CLI utils
@@ -268,12 +292,19 @@
     cage #login compositor
     xdg-desktop-portal-gtk #xdg portal for niri
     wob #On screen display
+    quickshell #QtQuick shell making (hard to do)
+    wdisplays #Screen configurator
 
-    #Graphical utilities
+    #Graphical programs
     alacritty #The only good terminal emulator
     xfce.thunar #Good file browser
+    xfce.tumbler #Thumbnails for thunar
+    pkgs.xfce.thunar-archive-plugin #Archiving thunar
+    file-roller #Archiver
     localsend # Open source airdrop
     nwg-look #GTK settings editor
+    kdePackages.qt6ct #Qt6 settings editor
+    libsForQt5.qt5ct #Qt5 settings editor
     lite-xl #Graphical text editor
     qimgv #Image viewer
     vlc #Video player
@@ -283,6 +314,17 @@
     gparted #Partition editor
     qalculate-gtk #Calculator on roids
     handbrake #Media tool
+    obs-studio #Recording tool
+    vesktop #Discord client
+    arrpc #Rich prescense for vesktop
+    cheese #Webcam software
+    font-manager #Its in the name
+    kdePackages.okular #pdf viewer
+    milkytracker #Music program
+    kdePackages.ark #Unarchiver and archiver
+    kdePackages.dolphin #File manager
+    wireshark #Network tool
+    virtualbox #VM manager
 
     #Laptop utils
     auto-cpufreq #Automatic cpu frequency adjuster
@@ -294,23 +336,58 @@
     materia-kde-theme
     papirus-icon-theme
     graphite-cursors
+    hackneyed
+    nashville96
+    chicago95
+    modernxp-cursors
 
-    #GUI programs
-    milkytracker
+    #Fun
+    bucklespring-libinput #Buckling spring kb sounds
+    asciicam #Webcam in ASCII
+    cmatrix
+
+
+    ## TEMP KDE ##
+    kdePackages.kcalc # Calculator
+    kdePackages.kcharselect # Character map
+    kdePackages.kclock # Clock app
+    kdePackages.kcolorchooser # Color picker
+    kdePackages.kolourpaint # Simple paint program
+    kdePackages.ksystemlog # System log viewer
+    kdiff3 # File/directory comparison tool
+  
+    # Hardware/System Utilities (Optional)
+    kdePackages.isoimagewriter # Write hybrid ISOs to USB
+    kdePackages.partitionmanager # Disk and partition management
+    hardinfo2 # System benchmarks and hardware info
+    wayland-utils # Wayland diagnostic tools
+    wl-clipboard # Wayland copy/paste support
+    vlc # Media player
+
   ];
 
+  #Fonts
   fonts = {
     fontconfig.enable = true;
     packages = with pkgs; [
       nerd-fonts.jetbrains-mono
       nerd-fonts.iosevka
+      nerd-fonts.bigblue-terminal
       cantarell-fonts
+      uni-vga
+      fixedsys-excelsior
     ];
   };
 
-  # networking.firewall.allowedTCPPorts = [ ... ];
+
+  #TEMP KDE INSTALL
+  services.desktopManager.plasma6.enable = true;
+
+  
+
+  #networking.firewall.allowedTCPPorts = [ 22 ];
   # networking.firewall.allowedUDPPorts = [ ... ];
-  # networking.firewall.enable = false;
+  networking.firewall.enable = true;
 
   #Services
   services.gvfs.enable = true;
@@ -325,9 +402,10 @@
       }
     '';
   };
-  services.auto-cpufreq.enable = true;
+  #services.auto-cpufreq.enable = true;
   services.playerctld.enable = true;
   services.blueman.enable = true;
+  services.sshd.enable = false;
   services.fprintd = {
     enable = true;
   };
@@ -341,6 +419,22 @@
       ExecStart = "${pkgs.bash}/bin/bash -c 'tail -f $XDG_RUNTIME_DIR/wob.sock | ${pkgs.wob}/bin/wob'";
       Restart = "on-failure";
     };
+  };
+  systemd.user.services.arrpc = {
+    description = "arRPC Discord Rich Presence Bridge";
+    wantedBy = [ "graphical-session.target" ];
+    after = [ "graphical-session.target" ];
+    serviceConfig = {
+      ExecStart = "${pkgs.arrpc}/bin/arrpc";
+      Restart = "on-failure";
+    };
+  };
+
+  powerManagement.powertop.enable = true;
+
+  ##ENV Vars
+  environment.sessionVariables = {
+    QT_QPA_PLATFORMTHEME = "qt6ct";
   };
 
 
